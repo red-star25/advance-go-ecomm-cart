@@ -43,12 +43,6 @@ func DeleteAddress() gin.HandlerFunc {
 		filter := bson.D{primitive.E{Key: "_id", Value: user_id}}
 		update := bson.D{{Key: "$set", Value: bson.D{primitive.E{Key: "address", Value: addresses}}}}
 
-		_, err = UserCollection.UpdateOne(c, filter, update)
-		if err != nil {
-			ctx.IndentedJSON(404, "wrong command")
-			return
-		}
-		ctx.Done()
-		ctx.IndentedJSON(200, "Successfully Deleted")
+		UserCollection.UpdateOne(c, filter, update)
 	}
 }

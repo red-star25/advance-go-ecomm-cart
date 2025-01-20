@@ -49,6 +49,6 @@ func DeleteAddress() gin.HandlerFunc {
 			return
 		}
 		ctx.Done()
-		ctx.IndentedJSON(200, "Successfully Deleted")
+		ctx.IndentedJSON(200, "Successfully Deleted ")
 	}
 }
