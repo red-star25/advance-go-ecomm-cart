@@ -215,6 +215,5 @@ func SearchProductByQuery() gin.HandlerFunc {
 		}
 
 		defer cancel()
-		ctx.IndentedJSON(200, searchProducts)
 	}
 }
