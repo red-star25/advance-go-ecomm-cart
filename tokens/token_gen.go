@@ -1,17 +1,17 @@
 package tokens
 
 import (
+	"context"
 	"log"
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/dgrijalva/jwt-go/v4"
-	jwt "github.com/dgrijalva/jwt-go/v4"
-	"github.com/golang-jwt/jwt"
-	"github.com/golang-jwt/jwt/v4"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/red-star25/advance-go/database"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var UserData *mongo.Collection = database.UserData(database.Client, "Users  ")
@@ -31,7 +31,7 @@ func TokenGenerator(email string, firstName string, lastName string, uID string)
 		FirstName: firstName,
 		LastName:  lastName,
 		uID:       uID,
-		StandardClaims: jwt.StandClamis{
+		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24)).Unix(),
 		},
 	}
@@ -53,9 +53,54 @@ func TokenGenerator(email string, firstName string, lastName string, uID string)
 		return
 	}
 
-	return token, refreshToken
+	return token, refreshToken, nil
 }
 
-func ValidateToken() {}
+func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
+	token, err := jwt.ParseWithClaims(signedToken, &SignedDetails{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SECRET_KEY), nil
+	})
 
-func UpdateAllToken() {}
+	if err != nil {
+		msg = err.Error()
+	}
+
+	claims, ok := token.Claims.(*SignedDetails)
+	if !ok {
+		msg = "the token is invalid"
+		return
+	}
+
+	if claims.ExpiresAt < time.Now().Local().Unix() {
+		msg = "token is already expired"
+		return
+	}
+	return claims, msg
+}
+
+func UpdateAllToken(signedToken string, signedRefreshToken, userId string) {
+	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*100)
+
+	var updateObj primitive.D
+
+	updateObj = append(updateObj, bson.E{Key: "token", Value: signedToken})
+	updateObj = append(updateObj, bson.E{Key: "refresh_token", Value: signedRefreshToken})
+	updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{Key: "updatedAt", Value: updated_at})
+
+	upsert := true
+
+	filter := bson.M{"user_id": userId}
+	opt := options.UpdateOptions{
+		Upsert: &upsert,
+	}
+
+	_, err := UserData.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateObj}}, &opt)
+
+	defer cancel()
+
+	if err != nil {
+		log.Panic(err)
+		return
+	}
+}

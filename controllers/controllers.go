@@ -11,6 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/red-star25/advance-go/database"
 	"github.com/red-star25/advance-go/models"
+	generate "github.com/red-star25/advance-go/tokens"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -85,8 +86,7 @@ func SignUp() gin.HandlerFunc {
 		user.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.ID = primitive.NewObjectID()
 		user.UserID = user.ID.Hex()
-
-		token, refreshToken, _ := generate.TokenGenerator(*user.Email, *user.FirstName, user.UserID)
+		token, refreshToken, _ := generate.TokenGenerator(*user.Email, *user.FirstName, *user.LastName, user.UserID)
 		user.Token = &token
 		user.RefreshToken = &refreshToken
 
@@ -132,7 +132,7 @@ func Login() gin.HandlerFunc {
 			fmt.Println(msg)
 			return
 		}
-		token, refreshToken, _ := generate.TokenGenerator(*foundUser.Email, *foundUser.FirstName, *foundUser.LastName, *foundUser.UserID)
+		token, refreshToken, _ := generate.TokenGenerator(*foundUser.Email, *foundUser.FirstName, *foundUser.LastName, foundUser.UserID)
 
 		generate.UpdateAllToken(token, refreshToken, foundUser.UserID)
 
@@ -141,7 +141,26 @@ func Login() gin.HandlerFunc {
 	}
 }
 
-// func ProductViewerAdmin() gin.HandlerFunc {}
+func ProductViewerAdmin() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var c, cancel = context.WithTimeout(context.Background(), time.Second*100)
+		var products models.Product
+		defer cancel()
+
+		if err := ctx.BindJSON(&products); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		products.ProductID = primitive.NewObjectID()
+		_, anyErr := ProductCollection.InsertOne(c, products)
+		if anyErr != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "not inserted"})
+			return
+		}
+		ctx.JSON(http.StatusOK, "Successfully added")
+	}
+}
 
 func SearchProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {

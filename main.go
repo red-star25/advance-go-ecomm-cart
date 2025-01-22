@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/red-star25/advance-go/controllers"
 	"github.com/red-star25/advance-go/database"
+	"github.com/red-star25/advance-go/middleware"
+	"github.com/red-star25/advance-go/routes"
 )
 
 func main() {
@@ -20,12 +22,12 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger())
 
-	router.UserRoutes(router)
+	routes.UserRoutes(router)
 	router.Use(middleware.Authentication())
 
 	router.GET("/addToCart", app.AddToCart())
 	router.GET("/removeItem", app.RemoveItem())
-	router.GET("/cartCheckout", app.CartCheckout())
+	router.GET("/cartCheckout", app.BuyFromCart())
 	router.GET("/instantBuy", app.InstantBuy())
 
 	log.Fatal(router.Run(":" + port))
